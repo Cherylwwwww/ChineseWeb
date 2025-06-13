@@ -17,7 +17,7 @@ const toneCards: ToneCard[] = [
 ];
 
 const ToneRecognitionGame: React.FC = () => {
-  const [isRecording, setIsRecording] = useState(false);
+  const isRecordingRef = useRef(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [selectedTone, setSelectedTone] = useState<number | null>(null);
   const [accuracy, setAccuracy] = useState<number>(0);
@@ -27,6 +27,8 @@ const ToneRecognitionGame: React.FC = () => {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+
+  const pitchHistoryRef = useRef<number[]>([]);
 
   useEffect(() => {
     // Initialize AudioContext
@@ -78,7 +80,13 @@ const ToneRecognitionGame: React.FC = () => {
       !analyserRef.current
     )
       return;
+    if (audioContextRef.current.state === "suspended") {
+      await audioContextRef.current.resume();
+    }
+    console.log("AudioContext state:", audioContextRef.current.state);
     const thisId = toneId;
+    isRecordingRef.current = true;
+    setSelectedTone(toneId);
 
     // 2. Create a fresh recorder each time (so it has a clean buffer)
     const recorder = new MediaRecorder(mediaStreamRef.current);
@@ -91,48 +99,107 @@ const ToneRecognitionGame: React.FC = () => {
     // 3. Kick off the recorder
     recorder.start();
     recorderRef.current = recorder;
-    setSelectedTone(toneId);
-    setIsRecording(true);
+
     const source = audioContextRef.current.createMediaStreamSource(
       mediaStreamRef.current
     );
     source.connect(analyserRef.current);
-
-    analyzeTone();
+    requestAnimationFrame(analyzeTone);
   };
 
   const stopRecording = () => {
     recorderRef.current!.stop();
-    setIsRecording(false);
+
+    const finalAcc = calculateAccuracy(pitchHistoryRef.current, selectedTone!);
+    setAccuracy(finalAcc);
+
+    // 3. Clear the pitch history so the next take starts fresh
+    pitchHistoryRef.current = [];
+    isRecordingRef.current = false;
     setSelectedTone(null);
   };
 
   const analyzeTone = () => {
-    if (!analyserRef.current || !isRecording) return;
+    debugger;
+    if (!analyserRef.current || !isRecordingRef.current) return;
 
     const bufferLength = analyserRef.current.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
     analyserRef.current.getByteTimeDomainData(dataArray);
 
-    // Calculate accuracy based on tone analysis
-    const currentAccuracy = calculateAccuracy(dataArray, selectedTone!);
+    const sampleRate = audioContextRef.current!.sampleRate;
+    const pitch = detectPitch(dataArray, sampleRate);
+    pitchHistoryRef.current.push(pitch);
+
+    // only evaluate once recording stops, or every frame if you like
+    const currentAccuracy = calculateAccuracy(
+      pitchHistoryRef.current,
+      selectedTone!
+    );
     setAccuracy(currentAccuracy);
 
-    if (isRecording) {
+    if (isRecordingRef.current) {
       requestAnimationFrame(analyzeTone);
     }
   };
 
-  const calculateAccuracy = (dataArray: Uint8Array, tone: number): number => {
-    // Simplified accuracy calculation
-    let sum = 0;
-    for (let i = 0; i < dataArray.length; i++) {
-      sum += Math.abs(dataArray[i] - 128) / 128;
+  const detectPitch = (dataArray: Uint8Array, sampleRate: number): number => {
+    const SIZE = dataArray.length;
+    // Convert bytes (0–255) to floats (-1…+1)
+    const buf = new Float32Array(SIZE);
+    for (let i = 0; i < SIZE; i++) {
+      buf[i] = (dataArray[i] - 128) / 128;
     }
-    const avgDeviation = sum / dataArray.length;
-    return Math.max(0, Math.min(1, 1 - avgDeviation));
+
+    let bestOffset = -1;
+    let bestCorrelation = 0;
+
+    // search for the offset that maximizes autocorrelation
+    for (let offset = 20; offset < 500; offset++) {
+      let corr = 0;
+      for (let i = 0; i + offset < SIZE; i++) {
+        corr += buf[i] * buf[i + offset];
+      }
+      if (corr > bestCorrelation) {
+        bestCorrelation = corr;
+        bestOffset = offset;
+      }
+    }
+
+    // convert offset to frequency
+    return bestOffset > 0 ? sampleRate / bestOffset : 0;
   };
 
+  // Compare a pitch contour to the target tone shape
+  const calculateAccuracy = (pitches: number[], tone: number): number => {
+    if (pitches.length < 2) return 0;
+
+    const startFreq = pitches[0];
+    const endFreq = pitches[pitches.length - 1];
+    let targetDelta = 0;
+
+    switch (tone) {
+      case 1: // high-level
+        targetDelta = 0;
+        break;
+      case 2: // rising
+        targetDelta = 1;
+        break;
+      case 3: // falling-rising
+        // simplistic: treat as flat (or you could check mid-dip)
+        targetDelta = 0;
+        break;
+      case 4: // falling
+        targetDelta = -1;
+        break;
+    }
+
+    const actualDelta = (endFreq - startFreq) / startFreq;
+    const error = Math.abs(actualDelta - targetDelta);
+
+    // map error [0…1+] → accuracy [1…0]
+    return Math.max(0, 1 - Math.min(1, error));
+  };
   const playReferenceTone = (tone: number) => {
     // In a real implementation, this would play a pre-recorded reference tone
     console.log(`Playing reference tone ${tone}`);
@@ -166,26 +233,29 @@ const ToneRecognitionGame: React.FC = () => {
             </div>
             <button
               onClick={() =>
-                isRecording ? stopRecording() : startRecording(card.tone)
+                isRecordingRef.current
+                  ? stopRecording()
+                  : startRecording(card.tone)
               }
               disabled={
-                !hasPermission || (isRecording && selectedTone !== card.tone)
+                !hasPermission ||
+                (isRecordingRef.current && selectedTone !== card.tone)
               }
               className={`
                 w-full flex items-center justify-center gap-2 py-2 rounded-lg font-medium
                 ${
-                  isRecording && selectedTone === card.tone
+                  isRecordingRef.current && selectedTone === card.tone
                     ? "bg-red-600 text-white hover:bg-red-700"
                     : "bg-gray-100 text-gray-800 hover:bg-gray-200"
                 }
                 ${
                   (!hasPermission ||
-                    (isRecording && selectedTone !== card.tone)) &&
+                    (isRecordingRef.current && selectedTone !== card.tone)) &&
                   "opacity-50 cursor-not-allowed"
                 }
               `}
             >
-              {isRecording && selectedTone === card.tone ? (
+              {isRecordingRef.current && selectedTone === card.tone ? (
                 <>
                   <MicOff className="h-5 w-5" />
                   Stop
@@ -217,7 +287,7 @@ const ToneRecognitionGame: React.FC = () => {
       </div>
 
       {/* Accuracy Display */}
-      {isRecording && (
+      {isRecordingRef.current && (
         <div className="text-center">
           <div className="inline-block px-4 py-2 rounded-lg bg-gray-100">
             <span className="font-medium">Accuracy: </span>
@@ -225,7 +295,6 @@ const ToneRecognitionGame: React.FC = () => {
           </div>
         </div>
       )}
-
       {!hasPermission && (
         <div className="text-center text-gray-600">
           Microphone access is required for tone recognition. Please allow
