@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Mic, MicOff, Volume2, Trash2 } from "lucide-react";
-import ToneTrainer from "./ToneTrainer";
 
 interface ToneCard {
   id: number;
@@ -209,7 +208,6 @@ const ToneRecognitionGame: React.FC = () => {
   return (
     <div className="bg-white p-6 rounded-xl shadow-lg">
       <h3 className="text-2xl font-semibold mb-6">Tone Recognition</h3>
-      <ToneTrainer></ToneTrainer>
 
       {/* Tone Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
