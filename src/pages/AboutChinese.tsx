@@ -2,7 +2,6 @@ import React from "react";
 import ToneRecognitionGame from "../components/ToneRecognitionGame";
 import PinyinDifferentiation from "../components/PinyinDifferentiation";
 import CharacterMatching from "../components/CharacterMatching";
-import VoiceControlGame from "../components/VoiceControlGame";
 
 const AboutChinese: React.FC = () => {
   return (
@@ -19,7 +18,7 @@ const AboutChinese: React.FC = () => {
 
         <div className="space-y-12">
           <ToneRecognitionGame />
-          <VoiceControlGame />
+
           <PinyinDifferentiation />
           <CharacterMatching />
         </div>

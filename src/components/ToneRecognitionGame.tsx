@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Mic, MicOff, Volume2, Trash2 } from "lucide-react";
+import VoiceControlGame from "./VoiceControlGame";
 
 interface ToneCard {
   id: number;
@@ -301,6 +302,7 @@ const ToneRecognitionGame: React.FC = () => {
           microphone access to use this feature.
         </div>
       )}
+      <VoiceControlGame />
     </div>
   );
 };

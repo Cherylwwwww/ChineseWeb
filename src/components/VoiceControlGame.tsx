@@ -4,6 +4,7 @@ const WIDTH = 300;
 const HEIGHT = 150;
 const THRESHOLD = 20;
 const START_X = 10;
+const ICON_SIZE = 32;
 
 const paths: Record<number, string> = {
   1: `M0,${HEIGHT / 2} L${WIDTH},${HEIGHT / 2}`,
@@ -18,6 +19,13 @@ const audioPaths: Record<number, string> = {
   3: "/audio/ma3.mp3",
   4: "/audio/ma4.mp3",
 };
+
+const COLORS: Record<number, { path: string; dot: string }> = {
+  1: { path: "#e74c3c", dot: "#c0392b" }, // red
+  2: { path: "#3498db", dot: "#2980b9" }, // blue
+  3: { path: "#2ecc71", dot: "#27ae60" }, // green
+  4: { path: "#f1c40f", dot: "#f39c12" },
+}; // yellow
 
 // Pre-stored durations in seconds
 const durations: Record<number, number> = {
@@ -47,7 +55,9 @@ const getToneY = (tone: number, x: number): number => {
 const VoiceControlGame: React.FC = () => {
   const [selectedTone, setSelectedTone] = useState<number>(1);
   const [cursorX, setCursorX] = useState<number>(START_X);
-  const [cursorY, setCursorY] = useState<number>(getToneY(1, START_X));
+  const [cursorY, setCursorY] = useState<number>(
+    getToneY(selectedTone, START_X)
+  );
   const [dragging, setDragging] = useState<boolean>(false);
   const [showSuccess, setShowSuccess] = useState<boolean>(false);
   const [showError, setShowError] = useState<boolean>(false);
@@ -93,7 +103,7 @@ const VoiceControlGame: React.FC = () => {
     clearAudio();
     setTimeout(() => {
       setShowSuccess(false);
-      resetPosition();
+      resetPosition(selectedTone);
     }, 2000);
   };
 
@@ -174,14 +184,17 @@ const VoiceControlGame: React.FC = () => {
     setDragging(false);
     const finalX = dragStatsRef.current.lastX;
     playSegment(finalX);
-    if (finalX >= WIDTH) {
-      handleSuccess();
+    if (finalX >= WIDTH * 0.8) {
+      const segmentMs = durations[selectedTone] * (finalX / WIDTH) * 1000;
+      setTimeout(() => {
+        handleSuccess();
+      }, segmentMs + 100);
     }
   };
 
   return (
     <div style={{ position: "relative", textAlign: "center", padding: "1rem" }}>
-      <h2>Tone Practice Game</h2>
+      <h3 className="text-2xl font-semibold mb-6 ">Tone Practice Game</h3>
 
       {/* Error Overlay */}
       {showError && (
@@ -191,14 +204,21 @@ const VoiceControlGame: React.FC = () => {
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            background: "rgba(255,255,255,0.9)",
-            padding: "0.5rem 1rem",
-            border: "2px solid red",
+            background: "rgba(231,76,60,0.9)",
+            padding: "0.75rem 1.5rem",
+            border: "2px solid #e74c3c",
             borderRadius: "8px",
             zIndex: 10,
           }}
         >
-          <p style={{ margin: 0, color: "red", fontSize: "16px" }}>
+          <p
+            style={{
+              margin: 0,
+              color: "#fff",
+              fontSize: "1rem",
+              fontWeight: "bold",
+            }}
+          >
             Wrong direction!
           </p>
         </div>
@@ -212,21 +232,34 @@ const VoiceControlGame: React.FC = () => {
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            background: "rgba(255,255,255,0.9)",
+            background: "rgba(46,204,113,0.9)",
             padding: "1rem 2rem",
-            border: "2px solid green",
+            border: "2px solid #2ecc71",
             borderRadius: "8px",
             zIndex: 10,
           }}
         >
-          <p style={{ margin: 0, color: "green", fontSize: "18px" }}>
+          <p
+            style={{
+              margin: 0,
+              color: "#fff",
+              fontSize: "1.1rem",
+              fontWeight: "bold",
+            }}
+          >
             Correct!
           </p>
         </div>
       )}
 
       <div style={{ marginBottom: "0.5rem" }}>
-        <label htmlFor="tone-select">Choose Tone: </label>
+        <label
+          htmlFor="tone-select"
+          style={{ fontSize: "1.2rem", marginRight: "0.5rem" }}
+          className="text-xl text-gray-600 mb-12"
+        >
+          Choose Tone:
+        </label>
         <select
           id="tone-select"
           value={selectedTone}
@@ -240,7 +273,7 @@ const VoiceControlGame: React.FC = () => {
           }}
         >
           {[1, 2, 3, 4].map((t) => (
-            <option key={t} value={t}>
+            <option key={t} value={t} className="text-xl text-gray-600 mb-12">
               Tone {t}
             </option>
           ))}
@@ -252,7 +285,11 @@ const VoiceControlGame: React.FC = () => {
         width={WIDTH}
         height={HEIGHT}
         style={{
-          border: "1px solid #ccc",
+          display: "block",
+          margin: "0 auto",
+          border: `3px solid ${COLORS[selectedTone].path}`,
+          borderRadius: "8px",
+          background: "#fff",
           cursor: showSuccess || showError ? "not-allowed" : "pointer",
           pointerEvents: showSuccess || showError ? "none" : "auto",
         }}
@@ -262,14 +299,23 @@ const VoiceControlGame: React.FC = () => {
       >
         <path
           d={paths[selectedTone]}
-          stroke="#aaa"
-          strokeWidth={2}
+          stroke={COLORS[selectedTone].path}
+          strokeWidth={4}
           fill="none"
         />
-        <circle cx={cursorX} cy={cursorY} r={8} fill="green" />
+        <image
+          href="/icons/pacman.png"
+          x={cursorX - ICON_SIZE / 2}
+          y={cursorY - ICON_SIZE / 2}
+          width={ICON_SIZE}
+          height={ICON_SIZE}
+          preserveAspectRatio="xMidYMid meet"
+        />
       </svg>
 
-      <p>Drag the dot along the path to practice Tone {selectedTone}.</p>
+      <p className="text-xl text-gray-600 mb-12">
+        Drag the dot along the path to practice Tone {selectedTone}.
+      </p>
     </div>
   );
 };
