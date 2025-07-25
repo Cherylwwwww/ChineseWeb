@@ -256,7 +256,7 @@ const VoiceControlGame: React.FC = () => {
         <label
           htmlFor="tone-select"
           style={{ fontSize: "1.2rem", marginRight: "0.5rem" }}
-          className="text-xl text-gray-600 mb-12"
+          className="text-xl text-gray-600"
         >
           Choose Tone:
         </label>
@@ -271,9 +271,10 @@ const VoiceControlGame: React.FC = () => {
             resetPosition(t);
             clearAudio();
           }}
+          className="text-xl text-gray-600 "
         >
           {[1, 2, 3, 4].map((t) => (
-            <option key={t} value={t} className="text-xl text-gray-600 mb-12">
+            <option key={t} value={t} className="text-xl text-gray-600">
               Tone {t}
             </option>
           ))}
@@ -286,7 +287,7 @@ const VoiceControlGame: React.FC = () => {
         height={HEIGHT}
         style={{
           display: "block",
-          margin: "0 auto",
+          margin: "10 auto",
           border: `3px solid ${COLORS[selectedTone].path}`,
           borderRadius: "8px",
           background: "#fff",
@@ -299,7 +300,7 @@ const VoiceControlGame: React.FC = () => {
       >
         <path
           d={paths[selectedTone]}
-          stroke={COLORS[selectedTone].path}
+          stroke={COLORS[selectedTone].dot}
           strokeWidth={4}
           fill="none"
         />
@@ -313,7 +314,7 @@ const VoiceControlGame: React.FC = () => {
         />
       </svg>
 
-      <p className="text-xl text-gray-600 mb-12">
+      <p className="text-xl text-gray-600 ">
         Drag the dot along the path to practice Tone {selectedTone}.
       </p>
     </div>
