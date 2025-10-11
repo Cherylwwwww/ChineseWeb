@@ -14,10 +14,10 @@ const paths: Record<number, string> = {
 };
 
 const audioPaths: Record<number, string> = {
-  1: "/audio/ma1.mp3",
-  2: "/audio/ma2.mp3",
-  3: "/audio/ma3.mp3",
-  4: "/audio/ma4.mp3",
+  1: "/audio/a1.mp3",
+  2: "/audio/a2.mp3",
+  3: "/audio/a3.mp3",
+  4: "/audio/a4.mp3",
 };
 
 const COLORS: Record<number, { path: string; dot: string }> = {
@@ -27,13 +27,32 @@ const COLORS: Record<number, { path: string; dot: string }> = {
   4: { path: "#f1c40f", dot: "#f39c12" },
 }; // yellow
 
-// Pre-stored durations in seconds
-const durations: Record<number, number> = {
-  1: 0.770612,
-  2: 0.927347,
-  3: 0.666122,
-  4: 0.561633,
+// Function to get audio duration
+const getAudioDuration = (src: string): Promise<number> => {
+  return new Promise((resolve, reject) => {
+    const audio = new Audio(src);
+    audio.addEventListener('loadedmetadata', () => {
+      resolve(audio.duration);
+    });
+    audio.addEventListener('error', (e) => {
+      reject(e);
+    });
+  });
 };
+
+// Load durations dynamically
+const durations: Record<number, number> = {};
+
+// Initialize durations (call this when your component mounts)
+const initializeDurations = async () => {
+  for (const [key, path] of Object.entries(audioPaths)) {
+    durations[Number(key)] = await getAudioDuration(path);
+  }
+};
+
+useEffect(() => {
+  initializeDurations();
+}, []);
 
 const getToneY = (tone: number, x: number): number => {
   switch (tone) {
